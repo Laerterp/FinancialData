@@ -1,0 +1,46 @@
+let
+    // 1. Faz a requisição HTTP à API da Alpha Vantage para pegar a taxa de câmbio BRL -> USD
+    Fonte = Json.Document(
+        Web.Contents(
+            "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=BRL&to_currency=USD&apikey=YOUR_API_KEY"
+        )
+    ),
+
+    // 2. Converte o JSON retornado pela API em uma tabela de registros
+    #"Convertido para Tabela" = Table.FromRecords({Fonte}),
+
+    // 3. Expande a coluna "Realtime Currency Exchange Rate" (que vem aninhada no JSON)
+    //    e seleciona apenas os campos desejados, renomeando-os
+    #"Realtime Currency Exchange Rate Expandido" = Table.ExpandRecordColumn(
+        #"Convertido para Tabela",
+        "Realtime Currency Exchange Rate",
+        {
+            "1. From_Currency Code", 
+            "2. From_Currency Name", 
+            "3. To_Currency Code", 
+            "4. To_Currency Name", 
+            "5. Exchange Rate"
+        },
+        {
+            "FromCurrency", 
+            "FromCurrencyName", 
+            "ToCurrency", 
+            "ToCurrencyName", 
+            "ExchangeRate"
+        }
+    ),
+
+    // 4. Converte a coluna ExchangeRate (que vem como texto) para número decimal
+    #"Tipo Alterado" = Table.TransformColumnTypes(
+        #"Realtime Currency Exchange Rate Expandido",
+        {{"ExchangeRate", type number}},
+        "en-US"   // garante que o ponto seja reconhecido como separador decimal
+    ),
+
+    // 5. Extrai apenas o primeiro valor da coluna [ExchangeRate]
+    //    ou seja, pega só a taxa de câmbio em si
+    Taxa = #"Tipo Alterado"{0}[ExchangeRate]   
+
+in
+    // 6. Retorna apenas o número da taxa
+    Taxa
